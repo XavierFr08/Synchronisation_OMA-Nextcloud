@@ -1,0 +1,12 @@
+[Unit]
+Description=Mount virtual USB image read-only
+After=piusb-gadget.service
+Requires=piusb-gadget.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/mount-piusb-ro.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
