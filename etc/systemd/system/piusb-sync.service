@@ -1,0 +1,15 @@
+[Unit]
+Description=Watch and sync piusb to Nextcloud
+After=piusb-mount.service
+Requires=piusb-mount.service
+
+[Service]
+Type=simple
+#User=xavier
+#Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/usr/local/bin/sync-piusb-to-nextcloud.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
