@@ -1,0 +1,17 @@
+[Unit]
+Description=Pi USB Mass Storage Gadget
+After=network.target
+
+[Service]
+Type=oneshot
+# Avant de lancer le script, on s’assure que le gadget n’est pas déjà lié
+ExecStartPre=/bin/sh -c 'if [ -e /sys/kernel/config/usb_gadget/g1/UDC ]; then echo "" > /sys/kernel/config/usb_gadget/g1/UDC; fi'
+ExecStart=/usr/local/bin/piusb-gadget.sh
+#ExecStartPost=/usr/local/bin/mount-piusb-ro.sh
+#ExecStartPost=/usr/local/bin/sync-piusb-to-nextcloud.sh &
+# Nettoyage lors de l’arrêt du service ou du reboot
+ExecStopPost=/bin/sh -c 'if [ -e /sys/kernel/config/usb_gadget/g1/UDC ]; then echo "" > /sys/kernel/config/usb_gadget/g1/UDC; fi; rm -rf /sys/kernel/config/usb_gadget/g1 || true'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
