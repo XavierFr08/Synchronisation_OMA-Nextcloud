@@ -9,6 +9,18 @@
 
 set -e
 
+# Charge la configuration utilisateur créée lors de l'installation
+CONF_FILE="/etc/piusb-sync.conf"
+if [[ -f "$CONF_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONF_FILE"
+fi
+PIUSB_USER="${PIUSB_USER:-}"
+if [[ -z "$PIUSB_USER" ]]; then
+    echo "ERROR: PIUSB_USER is not set. Run install.sh to configure the user." >&2
+    exit 1
+fi
+
 IMG="/piusb.img"                # Chemin de l'image disque à monter
 MOUNTPOINT="/mnt/piusb"         # Point de montage local sur le Pi
 
@@ -22,7 +34,7 @@ if [ -z "$DEVICE" ]; then
     DEVICE=$(losetup -f --show "$IMG")
 fi
 
-# Monte l'image en lecture seule, avec les bons UID/GID pour l'utilisateur "xavier"
-mount -o ro,uid=$(id -u xavier),gid=$(id -g xavier) "$DEVICE" "$MOUNTPOINT"
+# Monte l'image en lecture seule, avec les bons UID/GID pour l'utilisateur configuré
+mount -o ro,uid=$(id -u "${PIUSB_USER}"),gid=$(id -g "${PIUSB_USER}") "$DEVICE" "$MOUNTPOINT"
 
 echo "Image $IMG montée en lecture seule sur $MOUNTPOINT via $DEVICE"

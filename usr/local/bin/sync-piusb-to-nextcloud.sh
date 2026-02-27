@@ -5,7 +5,21 @@
 # ------------------------------------------------------------
 
 set -euo pipefail
-export RCLONE_CONFIG=/home/xavier/.config/rclone/rclone.conf
+
+# ------------------- Utilisateur -------------------
+CONF_FILE="/etc/piusb-sync.conf"
+if [[ -f "$CONF_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONF_FILE"
+fi
+PIUSB_USER="${PIUSB_USER:-}"
+if [[ -z "$PIUSB_USER" ]]; then
+    echo "ERROR: PIUSB_USER is not set. Run install.sh to configure the user." >&2
+    exit 1
+fi
+# ---------------------------------------------------
+
+export RCLONE_CONFIG="/home/${PIUSB_USER}/.config/rclone/rclone.conf"
 
 # ------------------- Configuration -------------------
 MOUNT_POINT="/mnt/piusb"
@@ -16,12 +30,12 @@ NEXTCLOUD_PATH="NIDEK/NIDEK-ICE9000"
 SLEEP_AFTER_EVENT=1
 RCLONE_OPTS=(--transfers=4 --checkers=8)
 TMP_DIR="/tmp/piusb-sync-tmp"
-XAVIER_HOME="/home/xavier"
-STATE_FILE="${XAVIER_HOME}/.piusb-sync/state.csv"
+USER_HOME="/home/${PIUSB_USER}"
+STATE_FILE="${USER_HOME}/.piusb-sync/state.csv"
 # ----------------------------------------------------
 
 mkdir -p "$TMP_DIR" "$(dirname "$STATE_FILE")"
-chown xavier:xavier "$TMP_DIR" "$(dirname "$STATE_FILE")"
+chown "${PIUSB_USER}:${PIUSB_USER}" "$TMP_DIR" "$(dirname "$STATE_FILE")"
 
 declare -A FILE_STATE
 
@@ -73,7 +87,7 @@ if [ -z "$DEVICE" ]; then
     DEVICE=$(losetup -f --show "$IMG")
 fi
 
-mount -o ro,uid=$(id -u xavier),gid=$(id -g xavier) "$DEVICE" "$MOUNT_POINT"
+mount -o ro,uid=$(id -u "${PIUSB_USER}"),gid=$(id -g "${PIUSB_USER}") "$DEVICE" "$MOUNT_POINT"
 
 echo "Montage prêt sur $MOUNT_POINT ($DEVICE)" >&2
 
@@ -186,7 +200,7 @@ while true; do
     fi
 
     DEVICE=$(losetup -f --show "$IMG")
-    mount -o ro,uid=$(id -u xavier),gid=$(id -g xavier) "$DEVICE" "$MOUNT_POINT"
+    mount -o ro,uid=$(id -u "${PIUSB_USER}"),gid=$(id -g "${PIUSB_USER}") "$DEVICE" "$MOUNT_POINT"
 
     echo "[INFO] Scan du contenu du disque USB..." >&2
 
