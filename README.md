@@ -41,7 +41,16 @@ de connexion Nextcloud :
 
 - URL Nextcloud,
 - nom d'utilisateur,
-- mot de passe.
+- mot de passe,
+- chemin distant de destination (ex: `NIDEK/NIDEK-ICE9000`).
+
+Format attendu pour le chemin distant :
+
+- vous pouvez saisir avec ou sans `/` au début (ex: `/NIDEK/NIDEK-ICE9000` ou `NIDEK/NIDEK-ICE9000`),
+- évitez le `/` final,
+- utilisez un chemin relatif dans le remote Nextcloud (pas d'URL complète).
+
+Le script normalise automatiquement ce chemin (suppression du `/` initial et final).
 
 Ces informations sont utilisées pour créer automatiquement le remote
 `nextcloud:` de `rclone` pour l'utilisateur configuré.
@@ -72,8 +81,8 @@ Cette commande :
 
 #### 2) Mettre à jour les identifiants Nextcloud
 
-Pour modifier uniquement l'URL, l'utilisateur et le mot de passe Nextcloud
-sans réinstallation complète :
+Pour modifier l'URL, l'utilisateur, le mot de passe **et** le chemin distant
+Nextcloud sans réinstallation complète :
 
 ```sh
 sudo ./install.sh reconfigure-nextcloud

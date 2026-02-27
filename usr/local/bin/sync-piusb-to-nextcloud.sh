@@ -26,13 +26,22 @@ MOUNT_POINT="/mnt/piusb"
 IMG="/piusb.img"
 SCAN_INTERVAL=15
 NEXTCLOUD_REMOTE="nextcloud:"
-NEXTCLOUD_PATH="NIDEK/NIDEK-ICE9000"
+NEXTCLOUD_PATH="${PIUSB_NEXTCLOUD_PATH:-NIDEK/NIDEK-ICE9000}"
 SLEEP_AFTER_EVENT=1
 RCLONE_OPTS=(--transfers=4 --checkers=8)
 TMP_DIR="/tmp/piusb-sync-tmp"
 USER_HOME="/home/${PIUSB_USER}"
 STATE_FILE="${USER_HOME}/.piusb-sync/state.csv"
 # ----------------------------------------------------
+
+# Normalize optional configured path to avoid accidental double slashes.
+NEXTCLOUD_PATH="${NEXTCLOUD_PATH#/}"
+NEXTCLOUD_PATH="${NEXTCLOUD_PATH%/}"
+
+if [[ -z "$NEXTCLOUD_PATH" ]]; then
+    echo "ERROR: PIUSB_NEXTCLOUD_PATH est vide dans $CONF_FILE." >&2
+    exit 1
+fi
 
 setup_nextcloud_remote_if_needed() {
     local remote_name="${NEXTCLOUD_REMOTE%:}"

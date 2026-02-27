@@ -123,6 +123,8 @@ configure_nextcloud() {
     local nc_url=""
     local nc_user=""
     local nc_pass=""
+    local nc_path=""
+    local nc_path_normalized=""
     local nc_remote="nextcloud"
 
     if [[ -z "$user" ]]; then
@@ -135,9 +137,21 @@ configure_nextcloud() {
     read -rp "[install] Nom d'utilisateur Nextcloud : " nc_user
     read -srp "[install] Mot de passe Nextcloud : " nc_pass
     echo
+    read -rp "[install] Chemin distant Nextcloud (ex: NIDEK/NIDEK-ICE9000) : " nc_path
 
-    if [[ -z "$nc_url" || -z "$nc_user" || -z "$nc_pass" ]]; then
-        echo "ERROR: URL, nom d'utilisateur et mot de passe Nextcloud sont obligatoires." >&2
+    if [[ -z "$nc_url" || -z "$nc_user" || -z "$nc_pass" || -z "$nc_path" ]]; then
+        echo "ERROR: URL, nom d'utilisateur, mot de passe et chemin distant Nextcloud sont obligatoires." >&2
+        exit 1
+    fi
+
+    # Normalize path format:
+    # - remove all leading '/'
+    # - remove one trailing '/'
+    nc_path_normalized="${nc_path#/}"
+    nc_path_normalized="${nc_path_normalized%/}"
+
+    if [[ -z "$nc_path_normalized" ]]; then
+        echo "ERROR: chemin distant Nextcloud invalide." >&2
         exit 1
     fi
 
@@ -145,6 +159,12 @@ configure_nextcloud() {
         echo "ERROR: sudo est requis pour configurer rclone pour l'utilisateur '$user'." >&2
         exit 1
     fi
+
+    {
+        echo "PIUSB_USER=${user}"
+        echo "PIUSB_NEXTCLOUD_PATH=${nc_path_normalized}"
+    } > /etc/piusb-sync.conf
+    echo "[install] Configuration écrite dans /etc/piusb-sync.conf (PIUSB_USER=${user}, PIUSB_NEXTCLOUD_PATH=${nc_path_normalized})"
 
     sudo -u "$user" mkdir -p "/home/${user}/.config/rclone"
     local obscured
