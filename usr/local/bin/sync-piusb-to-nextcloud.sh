@@ -26,7 +26,11 @@ chown xavier:xavier "$TMP_DIR" "$(dirname "$STATE_FILE")"
 declare -A FILE_STATE
 
 find_loop_device() {
-    losetup -j "$IMG" | awk -F: '{print $1}' | head -n1
+    # "head" may close the pipe after getting one line, causing awk to
+    # receive SIGPIPE and exit non-zero. with pipefail enabled the whole
+    # pipeline would then abort the script.  we ignore errors and silence
+    # awk stderr so that the service doesn't crash repeatedly.
+    losetup -j "$IMG" | awk -F: '{print $1}' 2>/dev/null | head -n1 || true
 }
 
 load_state() {
