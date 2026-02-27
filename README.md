@@ -51,26 +51,36 @@ Ces informations sont utilisées pour créer automatiquement le remote
 > conservé dans `~/.piusb-sync/state.csv` pour éviter les transferts
 > répétitifs.
 
-### Mise à jour
+### Maintenance
 
-Si vous êtes dans un clone git du dépôt, vous pouvez mettre à jour
-l'installation en vous plaçant dans le répertoire et en lançant :
+Le script `install.sh` propose deux commandes utiles après l'installation.
+
+#### 1) Mettre à jour les scripts et services
+
+Depuis le dossier du dépôt :
 
 ```sh
 sudo ./install.sh update
 ```
 
-Cela effectuera un `git pull` puis recopiera les fichiers et redémarrera
-les services.
+Cette commande :
 
-### Reconfigurer Nextcloud
+- met à jour le dépôt local (`git pull --ff-only origin main`),
+- recopie les scripts dans `/usr/local/bin`,
+- recopie les unités systemd dans `/etc/systemd/system`,
+- recharge systemd puis redémarre `piusb-gadget`, `piusb-mount` et `piusb-sync`.
 
-Pour changer uniquement les identifiants Nextcloud (URL, utilisateur,
-mot de passe) sans réinstaller, utilisez :
+#### 2) Mettre à jour les identifiants Nextcloud
+
+Pour modifier uniquement l'URL, l'utilisateur et le mot de passe Nextcloud
+sans réinstallation complète :
 
 ```sh
 sudo ./install.sh reconfigure-nextcloud
 ```
+
+Cette commande met à jour la configuration du remote `nextcloud:` dans `rclone`
+pour l'utilisateur configuré (`PIUSB_USER`), puis redémarre `piusb-sync.service`.
 
 ## Personnalisation
 
