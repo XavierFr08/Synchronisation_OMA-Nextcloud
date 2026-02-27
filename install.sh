@@ -2,6 +2,7 @@
 # installer for Synchronisation_OMA-Nextcloud
 # usage: ./install.sh install   # initial install
 #        ./install.sh update    # pull latest from git and refresh services
+#        ./install.sh reconfigure-nextcloud  # reconfigure Nextcloud credentials
 #
 # This script must be executed with root privileges.  It copies the
 # scripts and unit files from the repository to their destination,
@@ -117,6 +118,47 @@ configure_user() {
     echo "[install] Configuration utilisateur écrite dans /etc/piusb-sync.conf (PIUSB_USER=${user})"
 }
 
+configure_nextcloud() {
+    local user="$1"
+    local nc_url=""
+    local nc_user=""
+    local nc_pass=""
+    local nc_remote="nextcloud"
+
+    if [[ -z "$user" ]]; then
+        echo "ERROR: utilisateur manquant pour la configuration Nextcloud." >&2
+        exit 1
+    fi
+
+    echo "[install] Configuration de la connexion Nextcloud"
+    read -rp "[install] URL Nextcloud (ex: https://cloud.example.com/remote.php/dav/files/<user>) : " nc_url
+    read -rp "[install] Nom d'utilisateur Nextcloud : " nc_user
+    read -srp "[install] Mot de passe Nextcloud : " nc_pass
+    echo
+
+    if [[ -z "$nc_url" || -z "$nc_user" || -z "$nc_pass" ]]; then
+        echo "ERROR: URL, nom d'utilisateur et mot de passe Nextcloud sont obligatoires." >&2
+        exit 1
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        echo "ERROR: sudo est requis pour configurer rclone pour l'utilisateur '$user'." >&2
+        exit 1
+    fi
+
+    sudo -u "$user" mkdir -p "/home/${user}/.config/rclone"
+    local obscured
+    obscured=$(sudo -u "$user" rclone obscure "$nc_pass")
+
+    sudo -u "$user" rclone config create "$nc_remote" webdav \
+        url="$nc_url" \
+        vendor="nextcloud" \
+        user="$nc_user" \
+        pass="$obscured" >/dev/null
+
+    echo "[install] Remote rclone '${nc_remote}:' configuré pour l'utilisateur '$user'."
+}
+
 prepare_source() {
     # determine the directory which contains the repo we should operate
     # on.  priority order:
@@ -145,6 +187,9 @@ perform_install() {
     require_root
     install_packages
     configure_user
+    # shellcheck source=/dev/null
+    source /etc/piusb-sync.conf
+    configure_nextcloud "$PIUSB_USER"
     local src
     src=$(prepare_source)
     copy_files "$src"
@@ -175,6 +220,29 @@ perform_update() {
     echo "Update complete."
 }
 
+perform_reconfigure_nextcloud() {
+    require_root
+
+    local user=""
+    if [[ -f /etc/piusb-sync.conf ]]; then
+        # shellcheck source=/dev/null
+        source /etc/piusb-sync.conf
+        user="${PIUSB_USER:-}"
+    fi
+
+    if [[ -z "$user" ]]; then
+        echo "[reconfigure-nextcloud] PIUSB_USER non configuré, configuration de l'utilisateur..."
+        configure_user
+        # shellcheck source=/dev/null
+        source /etc/piusb-sync.conf
+        user="${PIUSB_USER:-}"
+    fi
+
+    configure_nextcloud "$user"
+    systemctl restart piusb-sync.service
+    echo "Reconfiguration Nextcloud terminée."
+}
+
 usage() {
     cat <<EOF
 Usage: $0 <command>
@@ -182,6 +250,7 @@ Usage: $0 <command>
 Commands:
   install   perform a fresh installation using the files in this repo
   update    refresh an existing installation (git pull + reapply)
+    reconfigure-nextcloud   reconfigure Nextcloud credentials only
 
 EOF
     exit 1
@@ -197,6 +266,9 @@ case "$1" in
         ;;
     update)
         perform_update
+        ;;
+    reconfigure-nextcloud)
+        perform_reconfigure_nextcloud
         ;;
     *)
         usage

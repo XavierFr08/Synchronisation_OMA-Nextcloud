@@ -35,6 +35,6 @@ if [ -z "$DEVICE" ]; then
 fi
 
 # Monte l'image en lecture seule, avec les bons UID/GID pour l'utilisateur configuré
-mount -o ro,uid=$(id -u "${PIUSB_USER}"),gid=$(id -g "${PIUSB_USER}") "$DEVICE" "$MOUNTPOINT"
+mount -o "ro,uid=$(id -u "${PIUSB_USER}"),gid=$(id -g "${PIUSB_USER}")" "$DEVICE" "$MOUNTPOINT"
 
 echo "Image $IMG montée en lecture seule sur $MOUNTPOINT via $DEVICE"

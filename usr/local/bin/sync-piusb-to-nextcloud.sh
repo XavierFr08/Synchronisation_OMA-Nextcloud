@@ -34,8 +34,51 @@ USER_HOME="/home/${PIUSB_USER}"
 STATE_FILE="${USER_HOME}/.piusb-sync/state.csv"
 # ----------------------------------------------------
 
+setup_nextcloud_remote_if_needed() {
+    local remote_name="${NEXTCLOUD_REMOTE%:}"
+
+    if sudo -u "${PIUSB_USER}" rclone listremotes | grep -qx "${remote_name}:"; then
+        return
+    fi
+
+    if [[ ! -t 0 ]]; then
+        echo "ERROR: remote rclone '${remote_name}:' introuvable et mode non interactif." >&2
+        echo "       Lancez 'sudo ./install.sh install' ou exécutez ce script dans un terminal pour configurer Nextcloud." >&2
+        exit 1
+    fi
+
+    local nc_url=""
+    local nc_user=""
+    local nc_pass=""
+
+    echo "Configuration Nextcloud requise pour le remote '${remote_name}:'" >&2
+    read -rp "URL Nextcloud (ex: https://cloud.example.com/remote.php/dav/files/<user>) : " nc_url
+    read -rp "Nom d'utilisateur Nextcloud : " nc_user
+    read -srp "Mot de passe Nextcloud : " nc_pass
+    echo
+
+    if [[ -z "$nc_url" || -z "$nc_user" || -z "$nc_pass" ]]; then
+        echo "ERROR: URL, nom d'utilisateur et mot de passe Nextcloud sont obligatoires." >&2
+        exit 1
+    fi
+
+    sudo -u "${PIUSB_USER}" mkdir -p "${USER_HOME}/.config/rclone"
+    local obscured
+    obscured=$(sudo -u "${PIUSB_USER}" rclone obscure "$nc_pass")
+
+    sudo -u "${PIUSB_USER}" rclone config create "${remote_name}" webdav \
+        url="$nc_url" \
+        vendor="nextcloud" \
+        user="$nc_user" \
+        pass="$obscured" >/dev/null
+
+    echo "Remote rclone '${remote_name}:' configuré avec succès." >&2
+}
+
 mkdir -p "$TMP_DIR" "$(dirname "$STATE_FILE")"
 chown "${PIUSB_USER}:${PIUSB_USER}" "$TMP_DIR" "$(dirname "$STATE_FILE")"
+
+setup_nextcloud_remote_if_needed
 
 declare -A FILE_STATE
 

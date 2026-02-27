@@ -36,6 +36,16 @@ Le script :
 4. active et démarre les services `piusb-gadget`, `piusb-mount` et
    `piusb-sync`.
 
+Pendant l'installation, le script demande maintenant les informations
+de connexion Nextcloud :
+
+- URL Nextcloud,
+- nom d'utilisateur,
+- mot de passe.
+
+Ces informations sont utilisées pour créer automatiquement le remote
+`nextcloud:` de `rclone` pour l'utilisateur configuré.
+
 > Le service `piusb-sync` surveille une image `/piusb.img` exposée en
 > gadget USB et synchronise son contenu vers Nextcloud. Un état est
 > conservé dans `~/.piusb-sync/state.csv` pour éviter les transferts
@@ -53,10 +63,23 @@ sudo ./install.sh update
 Cela effectuera un `git pull` puis recopiera les fichiers et redémarrera
 les services.
 
+### Reconfigurer Nextcloud
+
+Pour changer uniquement les identifiants Nextcloud (URL, utilisateur,
+mot de passe) sans réinstaller, utilisez :
+
+```sh
+sudo ./install.sh reconfigure-nextcloud
+```
+
 ## Personnalisation
 
 Modifiez les variables en tête de `sync-piusb-to-nextcloud.sh` si vous
 souhaitez changer le point de montage, le remote Nextcloud, etc.
+
+Si le remote `nextcloud:` est absent, le script de synchronisation peut
+également demander ces informations de manière interactive (lors d'un
+lancement en terminal) pour le créer.
 
 ---
 
