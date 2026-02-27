@@ -67,6 +67,56 @@ enable_and_start_services() {
     systemctl restart piusb-gadget.service piusb-mount.service piusb-sync.service
 }
 
+configure_user() {
+    local user=""
+
+    # 1. Use the calling user when run via sudo
+    if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
+        user="$SUDO_USER"
+        echo "[install] Utilisateur détecté via SUDO_USER : $user"
+    fi
+
+    # 2. Search for non-system users (UID >= 1000)
+    if [[ -z "$user" ]]; then
+        local candidates
+        candidates=$(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 && $7 !~ /(nologin|false|sync|halt|shutdown)$/ {print $1}')
+        local count=0
+        [[ -n "$candidates" ]] && count=$(echo "$candidates" | wc -l)
+
+        if [[ "$count" -eq 1 ]]; then
+            user="$candidates"
+            echo "[install] Utilisateur détecté automatiquement : $user"
+        elif [[ "$count" -gt 1 ]]; then
+            echo "[install] Plusieurs utilisateurs trouvés :"
+            echo "$candidates"
+        fi
+    fi
+
+    # 3. Prompt if still undetermined
+    if [[ -z "$user" ]]; then
+        read -rp "[install] Entrez le nom d'utilisateur à utiliser pour la synchronisation : " user
+    fi
+
+    if [[ -z "$user" ]]; then
+        echo "ERROR: aucun utilisateur spécifié." >&2
+        exit 1
+    fi
+
+    # Validate username to prevent injection (Linux username rules)
+    if [[ ! "$user" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+        echo "ERROR: nom d'utilisateur invalide : '$user'." >&2
+        exit 1
+    fi
+
+    if ! id "$user" &>/dev/null; then
+        echo "ERROR: l'utilisateur '$user' n'existe pas sur ce système." >&2
+        exit 1
+    fi
+
+    echo "PIUSB_USER=${user}" > /etc/piusb-sync.conf
+    echo "[install] Configuration utilisateur écrite dans /etc/piusb-sync.conf (PIUSB_USER=${user})"
+}
+
 prepare_source() {
     # determine the directory which contains the repo we should operate
     # on.  priority order:
@@ -94,6 +144,7 @@ prepare_source() {
 perform_install() {
     require_root
     install_packages
+    configure_user
     local src
     src=$(prepare_source)
     copy_files "$src"
