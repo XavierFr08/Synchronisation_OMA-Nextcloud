@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eux
+set -eu
 
 IMG="/piusb.img"
 GADGET_DIR="/sys/kernel/config/usb_gadget/g1"
@@ -12,20 +12,9 @@ GADGET_DIR="/sys/kernel/config/usb_gadget/g1"
 modprobe libcomposite
 
 # -------------------------------------------------
-# 3️⃣ Nettoyer un gadget existant (si présent)
-if [ -d "$GADGET_DIR" ]; then
-    # 3a – Détacher le contrôleur s’il est lié
-    if [ -e "$GADGET_DIR/UDC" ]; then
-        echo "" > "$GADGET_DIR/UDC" || true
-        # attendre que le noyau libère le gadget
-        timeout=5
-        while [ -e "$GADGET_DIR/UDC" ] && [ $timeout -gt 0 ]; do
-            sleep 0.2
-            timeout=$((timeout-1))
-        done
-    fi
-    # 3b – Supprimer le répertoire complet (maintenant autorisé)
-    rm -rf "$GADGET_DIR"
+# 3️⃣ Réinitialiser proprement le gadget (si présent)
+if [ -d "$GADGET_DIR" ] && [ -w "$GADGET_DIR/UDC" ]; then
+    printf '' > "$GADGET_DIR/UDC" 2>/dev/null || true
 fi
 
 # -------------------------------------------------
@@ -55,7 +44,7 @@ echo 0 > functions/mass_storage.0/lun.0/ro
 echo 1 > functions/mass_storage.0/lun.0/nofua
 echo "$IMG" > functions/mass_storage.0/lun.0/file
 
-ln -s functions/mass_storage.0 configs/c.1/
+ln -sfn functions/mass_storage.0 configs/c.1/mass_storage.0
 
 # -------------------------------------------------
 # 6️⃣ Lier au contrôleur USB (UDC)
