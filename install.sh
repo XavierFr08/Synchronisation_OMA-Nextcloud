@@ -23,6 +23,10 @@ REPO_URL=${REPO_URL:-https://github.com/XavierFr08/Synchronisation_OMA-Nextcloud
 
 # directory where the installer script was invoked; may or may not be
 # the repository itself.  we detect and possibly clone later.
+# define BASH_SOURCE fallback for strict-mode shells where it may be unset
+if [[ -z "${BASH_SOURCE+x}" || -z "${BASH_SOURCE[0]:-}" ]]; then
+    BASH_SOURCE=("$0")
+fi
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 require_root() {
