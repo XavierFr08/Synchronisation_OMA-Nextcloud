@@ -41,7 +41,21 @@ install_packages() {
     echo "[install] Updating package lists and installing dependencies..."
     apt update
     apt upgrade -y
-    apt install -y rpi-usb-gadget rclone git
+    apt install -y rpi-usb-gadget rclone git dosfstools
+}
+
+ensure_piusb_image() {
+    local img="/piusb.img"
+
+    if [[ -f "$img" ]]; then
+        echo "[install] USB image déjà présente: $img"
+        return
+    fi
+
+    echo "[install] Création de $img (256MiB, FAT32)..."
+    dd if=/dev/zero of="$img" bs=1M count=256 status=progress
+    mkfs.vfat -F 32 "$img"
+    sync
 }
 
 copy_files() {
@@ -69,7 +83,29 @@ copy_files() {
 enable_and_start_services() {
     echo "[install] Enabling and starting services..."
     systemctl enable piusb-gadget.service piusb-mount.service piusb-sync.service
-    systemctl restart piusb-gadget.service piusb-mount.service piusb-sync.service
+
+    if ! systemctl restart piusb-gadget.service; then
+        echo "[warn] piusb-gadget.service n'a pas démarré." >&2
+        echo "[warn] Vérifiez: systemctl status piusb-gadget.service" >&2
+        echo "[warn] Détails:  journalctl -xeu piusb-gadget.service" >&2
+        echo "[warn] Cause fréquente: image /piusb.img absente." >&2
+        echo "[warn] Les services dépendants (piusb-mount, piusb-sync) ne sont pas démarrés pour l'instant." >&2
+        return 0
+    fi
+
+    if ! systemctl restart piusb-mount.service; then
+        echo "[warn] piusb-mount.service n'a pas démarré." >&2
+        echo "[warn] Vérifiez: systemctl status piusb-mount.service" >&2
+        echo "[warn] Détails:  journalctl -xeu piusb-mount.service" >&2
+        echo "[warn] piusb-sync.service ne sera pas démarré tant que le montage échoue." >&2
+        return 0
+    fi
+
+    if ! systemctl restart piusb-sync.service; then
+        echo "[warn] piusb-sync.service n'a pas démarré." >&2
+        echo "[warn] Vérifiez: systemctl status piusb-sync.service" >&2
+        echo "[warn] Détails:  journalctl -xeu piusb-sync.service" >&2
+    fi
 }
 
 configure_user() {
@@ -158,6 +194,7 @@ perform_install() {
         exit 1
     fi
     copy_files "$PREPARED_SOURCE"
+    ensure_piusb_image
     enable_and_start_services
     echo "Installation complete."
 }
