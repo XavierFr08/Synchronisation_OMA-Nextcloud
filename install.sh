@@ -130,18 +130,18 @@ prepare_source() {
     # 3. otherwise clone from REPO_URL into INSTALL_DIR.
 
     if [[ -d "$SCRIPT_DIR/usr/local/bin" && -d "$SCRIPT_DIR/etc/systemd/system" ]]; then
-        echo "[install] using repository at $SCRIPT_DIR"
+        echo "[install] using repository at $SCRIPT_DIR" >&2
         echo "$SCRIPT_DIR"
         return
     fi
 
     if [[ -d "$INSTALL_DIR/.git" ]]; then
-        echo "[install] using existing clone at $INSTALL_DIR"
+        echo "[install] using existing clone at $INSTALL_DIR" >&2
         echo "$INSTALL_DIR"
         return
     fi
 
-    echo "[install] cloning repository to $INSTALL_DIR"
+    echo "[install] cloning repository to $INSTALL_DIR" >&2
     git clone "$REPO_URL" "$INSTALL_DIR"
     echo "$INSTALL_DIR"
 }
