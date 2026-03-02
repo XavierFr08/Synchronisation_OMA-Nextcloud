@@ -58,6 +58,20 @@ ensure_piusb_image() {
     sync
 }
 
+ensure_piusb_mount() {
+    local mountpoint="/mnt/piusb"
+
+    mkdir -p "$mountpoint"
+
+    if findmnt -rn -M "$mountpoint" >/dev/null 2>&1; then
+        echo "[install] Image déjà montée sur $mountpoint"
+        return
+    fi
+
+    echo "[install] Montage de /piusb.img sur $mountpoint..."
+    /usr/local/bin/mount-piusb-ro.sh
+}
+
 copy_files() {
     local src="$1"  # repository root containing usr/ and etc/
 
@@ -195,6 +209,7 @@ perform_install() {
     fi
     copy_files "$PREPARED_SOURCE"
     ensure_piusb_image
+    ensure_piusb_mount
     enable_and_start_services
     echo "Installation complete."
 }
@@ -218,6 +233,8 @@ perform_update() {
     git -C "$src" pull --ff-only origin main
 
     copy_files "$src"
+    ensure_piusb_image
+    ensure_piusb_mount
     enable_and_start_services
     echo "Update complete."
 }
