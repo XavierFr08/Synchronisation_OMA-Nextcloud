@@ -15,7 +15,6 @@ La commande ci‑dessous effectue l'installation sur un Pi neuf en partant
 uniquement d'un système de base :
 
 ```sh
-# exemple : téléchargement temporaire puis exécution
 curl -fsSL https://raw.githubusercontent.com/XavierFr08/Synchronisation_OMA-Nextcloud/main/install.sh | sudo bash -s -- install
 ```
 
