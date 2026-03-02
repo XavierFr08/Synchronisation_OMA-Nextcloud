@@ -37,6 +37,17 @@ echo 250 > configs/c.1/MaxPower
 
 # -------------------------------------------------
 # 5️⃣ Fonction mass‑storage
+# Nettoyage ciblé d'une instance précédente pour éviter les erreurs I/O
+if [ -L configs/c.1/mass_storage.0 ]; then
+    rm -f configs/c.1/mass_storage.0 || true
+fi
+
+if [ -d functions/mass_storage.0 ]; then
+    printf '' > functions/mass_storage.0/lun.0/file 2>/dev/null || true
+    rmdir functions/mass_storage.0/lun.0 2>/dev/null || true
+    rmdir functions/mass_storage.0 2>/dev/null || true
+fi
+
 mkdir -p functions/mass_storage.0
 echo 1 > functions/mass_storage.0/stall
 echo 0 > functions/mass_storage.0/lun.0/cdrom
