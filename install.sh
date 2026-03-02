@@ -123,6 +123,8 @@ configure_user() {
 }
 
 prepare_source() {
+    PREPARED_SOURCE=""
+
     # determine the directory which contains the repo we should operate
     # on.  priority order:
     # 1. if the script was run from inside a valid clone use that.
@@ -131,28 +133,31 @@ prepare_source() {
 
     if [[ -d "$SCRIPT_DIR/usr/local/bin" && -d "$SCRIPT_DIR/etc/systemd/system" ]]; then
         echo "[install] using repository at $SCRIPT_DIR" >&2
-        echo "$SCRIPT_DIR"
+        PREPARED_SOURCE="$SCRIPT_DIR"
         return
     fi
 
     if [[ -d "$INSTALL_DIR/.git" ]]; then
         echo "[install] using existing clone at $INSTALL_DIR" >&2
-        echo "$INSTALL_DIR"
+        PREPARED_SOURCE="$INSTALL_DIR"
         return
     fi
 
     echo "[install] cloning repository to $INSTALL_DIR" >&2
     git clone "$REPO_URL" "$INSTALL_DIR"
-    echo "$INSTALL_DIR"
+    PREPARED_SOURCE="$INSTALL_DIR"
 }
 
 perform_install() {
     require_root
     install_packages
     configure_user
-    local src
-    src=$(prepare_source)
-    copy_files "$src"
+    prepare_source
+    if [[ -z "${PREPARED_SOURCE:-}" ]]; then
+        echo "ERROR: impossible de déterminer le répertoire source." >&2
+        exit 1
+    fi
+    copy_files "$PREPARED_SOURCE"
     enable_and_start_services
     echo "Installation complete."
 }
