@@ -78,19 +78,29 @@ Si vous êtes dans un clone git du dépôt, vous pouvez mettre à jour l'install
 sudo ./install.sh update
 ```
 
-Cela effectuera un `git pull` puis recopiera les fichiers et redémarrera les services. Le script vous proposera optionnellement de reconfigurer les paramètres Nextcloud.
+Cela effectuera un `git pull` puis :
 
-### Mettre à jour uniquement les paramètres Nextcloud
+1. **Vérifie la configuration Nextcloud** 
+   - Si absente ou incomplète, vous invite à la configurer
+   - Si présente, teste l'accès au serveur Nextcloud
+2. **Teste l'accès à Nextcloud** via rclone
+   - ✓ Si le test réussit, continue l'installation
+   - ✗ Si le test échoue, propose de reconfigurer les paramètres
+3. **Redémarre les services** avec la configuration mise à jour
 
-Pour reconfigurer les paramètres Nextcloud sans mettre à jour le dépôt :
+### Mise à Jour depuis une Version Ancienne
 
-```sh
-sudo ./install.sh update
-```
+Si vous mettez à jour depuis une version qui ne proposait pas la configuration Nextcloud directe (paramètres `NEXTCLOUD_URL`, `NEXTCLOUD_USER`, `NEXTCLOUD_PASSWORD` absents), le script vous guidera automatiquement :
 
-et répondez `o` quand le script vous demande si vous souhaitez reconfigurer Nextcloud.
+1. Détecte les paramètres manquants
+2. Vous propose de configurer Nextcloud
+3. Teste l'accès au serveur
+4. Sauvegarde l'ancienne configuration dans `/etc/piusb-sync.conf.bak`
+5. Utilise la nouvelle configuration
 
-Alternativement, vous pouvez éditer directement `/etc/piusb-sync.conf` :
+### Mettre à Jour uniquement les Paramètres Nextcloud
+
+Vous pouvez éditer directement `/etc/piusb-sync.conf` :
 
 ```sh
 sudo nano /etc/piusb-sync.conf
@@ -194,6 +204,47 @@ Assurez-vous que le fichier `rclone.conf` est owné par `PIUSB_USER` :
 sudo chown <PIUSB_USER>:<PIUSB_USER> ~/.config/rclone/rclone.conf
 sudo chmod 600 ~/.config/rclone/rclone.conf
 ```
+
+### Problème d'accès Nextcloud lors d'une Update
+
+Si le test d'accès échoue lors de `sudo ./install.sh update` :
+
+**Vérifications à effectuer :**
+
+1. **L'URL du serveur est-elle correcte?**
+   ```sh
+   sudo grep NEXTCLOUD_URL /etc/piusb-sync.conf
+   ```
+
+2. **Les identifiants Nextcloud sont-ils valides?**
+   ```sh
+   sudo grep NEXTCLOUD_USER /etc/piusb-sync.conf
+   ```
+
+3. **Le chemin existe-t-il sur Nextcloud?**
+   - Connectez-vous à Nextcloud et vérifiez que le dossier existe
+   - Exemple : `/Fichiers/raspberrypi/` ou `/Fichiers/{NEXTCLOUD_PATH}/`
+
+4. **La configuration rclone est-elle valide?**
+   ```sh
+   sudo -u <PIUSB_USER> rclone lsf nextcloud:/
+   ```
+
+5. **Y a-t-il un problème de connectivité?**
+   ```sh
+   ping <serveur-nextcloud>
+   curl https://<serveur-nextcloud>
+   ```
+
+**Solution :**
+
+Relancez la configuration :
+
+```sh
+sudo ./install.sh update
+```
+
+Le script vous demandera si vous souhaitez reconfigurer Nextcloud. Répondez `o` et entrez les paramètres corrects.
 
 ### Générer un mot de passe d'application Nextcloud
 

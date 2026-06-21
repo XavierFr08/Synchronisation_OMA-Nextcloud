@@ -185,6 +185,98 @@ get_piusb_hostname() {
     echo "$hostname"
 }
 
+verify_nextcloud_config() {
+    local conf_file="$1"
+    
+    # Vérifier que les paramètres existent
+    if [[ ! -f "$conf_file" ]]; then
+        return 1
+    fi
+    
+    local has_url has_user has_pass
+    has_url=$(grep -c '^NEXTCLOUD_URL=' "$conf_file" 2>/dev/null || true)
+    has_user=$(grep -c '^NEXTCLOUD_USER=' "$conf_file" 2>/dev/null || true)
+    has_pass=$(grep -c '^NEXTCLOUD_PASSWORD=' "$conf_file" 2>/dev/null || true)
+    
+    if [[ $has_url -eq 0 || $has_user -eq 0 || $has_pass -eq 0 ]]; then
+        return 1
+    fi
+    
+    return 0
+}
+
+test_nextcloud_access() {
+    local nc_url nc_user nc_path
+    
+    # Charger la configuration
+    if [[ ! -f "/etc/piusb-sync.conf" ]]; then
+        return 1
+    fi
+    
+    source /etc/piusb-sync.conf
+    
+    if [[ -z "${NEXTCLOUD_URL:-}" || -z "${NEXTCLOUD_USER:-}" || -z "${PIUSB_USER:-}" ]]; then
+        return 1
+    fi
+    
+    nc_path="${NEXTCLOUD_PATH:-${PIUSB_HOSTNAME}}"
+    
+    echo "[check] Test de l'accès à Nextcloud..." >&2
+    echo "[check]   URL: ${NEXTCLOUD_URL}" >&2
+    echo "[check]   Utilisateur: ${NEXTCLOUD_USER}" >&2
+    echo "[check]   Chemin: ${nc_path}" >&2
+    echo "" >&2
+    
+    # Tester l'accès via rclone
+    if sudo -u "${PIUSB_USER}" rclone lsf "nextcloud:${nc_path}" >/dev/null 2>&1; then
+        echo "[check] ✓ Accès Nextcloud OK" >&2
+        return 0
+    else
+        echo "[check] ✗ Impossible d'accéder à Nextcloud" >&2
+        echo "[check] Vérifications à effectuer:" >&2
+        echo "[check]   1. URL du serveur correcte" >&2
+        echo "[check]   2. Identifiants Nextcloud corrects" >&2
+        echo "[check]   3. Le chemin '${nc_path}' existe sur Nextcloud" >&2
+        echo "[check]   4. Configuration rclone valide" >&2
+        return 1
+    fi
+}
+
+check_and_configure_nextcloud() {
+    local reconfigure answer
+    
+    if ! verify_nextcloud_config "/etc/piusb-sync.conf"; then
+        echo "" >&2
+        echo "[install] Configuration Nextcloud manquante ou incomplète." >&2
+        read -rp "[install] Configurer Nextcloud maintenant? (o/n) [o] : " answer
+        if [[ "${answer:-o}" == "o" || "${answer:-o}" == "O" ]]; then
+            configure_nextcloud
+        else
+            echo "ERROR: Configuration Nextcloud requise pour continuer." >&2
+            exit 1
+        fi
+        return 0
+    fi
+    
+    # Configuration existe, tester l'accès
+    if ! test_nextcloud_access; then
+        echo "" >&2
+        read -rp "[install] Reconfigurer Nextcloud? (o/n) [o] : " reconfigure
+        if [[ "${reconfigure:-o}" == "o" || "${reconfigure:-o}" == "O" ]]; then
+            # Sauvegarder les anciens paramètres
+            cp /etc/piusb-sync.conf "/etc/piusb-sync.conf.bak"
+            # Extraire et garder les paramètres non-Nextcloud
+            grep '^PIUSB_' "/etc/piusb-sync.conf.bak" > /etc/piusb-sync.conf.tmp
+            mv /etc/piusb-sync.conf.tmp /etc/piusb-sync.conf
+            configure_nextcloud
+            echo "[install] Configuration mise à jour. Ancien fichier sauvegardé: /etc/piusb-sync.conf.bak" >&2
+        else
+            echo "WARNING: Les paramètres Nextcloud ne sont pas accessibles." >&2
+            echo "[install] La synchronisation risque de ne pas fonctionner." >&2
+        fi
+    fi
+}
+
 configure_nextcloud() {
     local nc_url nc_user nc_password app_name nc_path user_nc_path
     local piusb_hostname
@@ -338,11 +430,10 @@ perform_update() {
 
     echo "[update] updating repository in $src"
     git -C "$src" pull --ff-only origin main
-    # Ask if user wants to reconfigure Nextcloud
-    read -rp \"[update] Reconfigurer les paramètres Nextcloud? (o/n) [n] : \" reconfigure_nc
-    if [[ \"${reconfigure_nc:-n}\" == \"o\" || \"${reconfigure_nc:-n}\" == \"O\" ]]; then
-        configure_nextcloud
-    fi
+    
+    # Vérifier et configurer Nextcloud si nécessaire
+    check_and_configure_nextcloud
+    
     copy_files "$src"
     ensure_piusb_image
     ensure_piusb_mount
