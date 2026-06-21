@@ -172,12 +172,43 @@ configure_user() {
     echo "[install] Configuration utilisateur écrite dans /etc/piusb-sync.conf (PIUSB_USER=${user})"
 }
 
+get_piusb_hostname() {
+    local hostname
+    hostname=$(hostname -s)  # Get short hostname
+    
+    # Validate hostname (alphanumeric and hyphens only, max 63 chars)
+    if [[ ! "$hostname" =~ ^[a-zA-Z0-9-]+$ ]] || [[ ${#hostname} -gt 63 ]]; then
+        echo "ERROR: Hostname invalide : '$hostname'. Doit contenir uniquement des lettres, chiffres et tirets." >&2
+        exit 1
+    fi
+    
+    echo "$hostname"
+}
+
 configure_nextcloud() {
-    local nc_url nc_user nc_password
+    local nc_url nc_user nc_password app_name nc_path user_nc_path
+    local piusb_hostname
+    piusb_hostname=$(get_piusb_hostname)
+    app_name="${piusb_hostname}-sync"  # Nom du mot de passe d'application
+    nc_path="${piusb_hostname}"  # Chemin Nextcloud par défaut
 
     echo ""
     echo "[install] ===== Configuration Nextcloud ====="
     echo "[install] Entrez les paramètres de connexion Nextcloud pour la synchronisation."
+    echo ""
+    echo "[INFO] Hostname détecté: ${piusb_hostname}"
+    echo ""
+
+    # Instructions pour créer le mot de passe d'application
+    echo "[INSTRUCTION] AVANT de continuer, créez un mot de passe d'application dans Nextcloud :"
+    echo "  1. Connectez-vous à Nextcloud"
+    echo "  2. Allez dans Paramètres → Sécurité"
+    echo "  3. Cherchez 'Mots de passe d'application' en bas de la page"
+    echo "  4. Entrez le nom: '${app_name}'"
+    echo "  5. Cliquez sur 'Générer le mot de passe'"
+    echo "  6. Copiez le mot de passe généré"
+    echo ""
+    read -rp "[install] Appuyez sur Entrée pour continuer quand le mot de passe est créé..." 
     echo ""
 
     # Prompt for Nextcloud URL
@@ -205,11 +236,19 @@ configure_nextcloud() {
         exit 1
     fi
 
+    # Prompt for Nextcloud path (with default based on hostname)
+    read -rp "[install] Chemin dans Nextcloud pour la synchronisation (défaut: ${nc_path}) : " user_nc_path
+    if [[ -n "$user_nc_path" ]]; then
+        nc_path="$user_nc_path"
+    fi
+
     # Append Nextcloud configuration to /etc/piusb-sync.conf
     {
+        echo "PIUSB_HOSTNAME=${piusb_hostname}"
         echo "NEXTCLOUD_URL=${nc_url}"
         echo "NEXTCLOUD_USER=${nc_user}"
         echo "NEXTCLOUD_PASSWORD=${nc_password}"
+        echo "NEXTCLOUD_PATH=${nc_path}"
     } >> /etc/piusb-sync.conf
 
     chmod 600 /etc/piusb-sync.conf
@@ -235,6 +274,8 @@ EOF
 
     echo "[install] Configuration Nextcloud sauvegardée dans /etc/piusb-sync.conf"
     echo "[install] Configuration rclone créée pour l'utilisateur ${PIUSB_USER}"
+    echo "[install] Dossier Nextcloud: ${nc_path}"
+    echo "[install] Mot de passe d'application nommé: ${app_name}"
 }
 
 prepare_source() {

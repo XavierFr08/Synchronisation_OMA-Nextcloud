@@ -38,20 +38,33 @@ Le script :
 1. met à jour le système (`apt update/upgrade`),
 2. installe les dépendances (`rpi-usb-gadget`, `rclone`, `git`, `dosfstools`),
 3. vous demande de **configurer l'utilisateur** pour la synchronisation,
-4. vous demande les **paramètres de connexion Nextcloud** (URL, nom d'utilisateur, mot de passe d'application),
-5. copie les scripts dans `/usr/local/bin` et les services dans `/etc/systemd/system`,
-6. crée l'image USB virtuelle `/piusb.img` (256 MiB, FAT32),
-7. active et démarre les services `piusb-gadget`, `piusb-mount` et `piusb-sync`.
+4. détecte le **hostname du Pi** (ex : `raspberrypi`, `pi-nidek`, etc.),
+5. vous affiche les **instructions pour créer un mot de passe d'application** Nextcloud nommé `{hostname}-sync`,
+6. vous demande les **paramètres de connexion Nextcloud** (URL, nom d'utilisateur, mot de passe d'application),
+7. vous propose un **chemin Nextcloud par défaut** basé sur le hostname (ex : `raspberrypi`),
+8. copie les scripts dans `/usr/local/bin` et les services dans `/etc/systemd/system`,
+9. crée l'image USB virtuelle `/piusb.img` (256 MiB, FAT32),
+10. active et démarre les services `piusb-gadget`, `piusb-mount` et `piusb-sync`.
 
-### Configuration Nextcloud
+### Personnalisation par Hostname
 
-L'installation vous demandera les paramètres suivants :
+Cette installation utilise automatiquement le **hostname du Raspberry Pi** pour personnaliser l'installation et éviter les conflits en cas d'installations multiples :
 
-- **URL du serveur Nextcloud** : Ex : `https://nextcloud.example.com`
-- **Nom d'utilisateur Nextcloud** : Votre nom d'utilisateur Nextcloud
-- **Mot de passe d'application** : Un mot de passe d'application généré dans Nextcloud (Paramètres → Sécurité → Mots de passe d'application)
+- **Hostname** : Nom du Pi (ex : `raspberrypi`, `pi-nidek`, `pi-sync-1`, etc.)
+  - Détecté automatiquement : `hostname -s`
+  - Doit contenir uniquement des lettres, chiffres et tirets
 
-Ces paramètres sont stockés dans `/etc/piusb-sync.conf` avec des permissions restrictives (600).
+- **Mot de passe d'application Nextcloud** : Nommé `{hostname}-sync`
+  - Exemple : `raspberrypi-sync`, `pi-nidek-sync`
+  - Facilite la gestion si plusieurs Pi utilisent le même compte Nextcloud
+
+- **Chemin Nextcloud** : Par défaut `{hostname}`
+  - Exemple : `raspberrypi/`, `pi-nidek/`
+  - Personnalisable lors de l'installation ou dans `/etc/piusb-sync.conf`
+
+- **Identifiant USB** : Serial number du disque USB = hostname
+  - Le Pi apparaîtra avec son hostname sur les ordinateurs connectés via USB
+  - Exemple : Disque nommé `raspberrypi` au lieu de `0123456789`
 
 Si un service ne démarre pas au premier lancement, l'installation se termine maintenant avec un avertissement (sans interrompre la copie des fichiers). Vous pouvez ensuite corriger la cause et relancer les services.
 
@@ -94,16 +107,19 @@ sudo systemctl restart piusb-sync.service
 Les paramètres de configuration sont stockés dans `/etc/piusb-sync.conf` :
 
 - **PIUSB_USER** : Utilisateur système pour la synchronisation (défini lors de l'installation)
+- **PIUSB_HOSTNAME** : Hostname du Pi (ex : `raspberrypi`, `pi-nidek`)
+  - Détecté automatiquement lors de l'installation
+  - Utilisé pour le nom du mot de passe d'application et le chemin Nextcloud
 - **NEXTCLOUD_URL** : URL de votre serveur Nextcloud
 - **NEXTCLOUD_USER** : Nom d'utilisateur Nextcloud
 - **NEXTCLOUD_PASSWORD** : Mot de passe d'application Nextcloud
+- **NEXTCLOUD_PATH** : Chemin de destination sur Nextcloud (défaut : `{PIUSB_HOSTNAME}`)
 
 Vous pouvez également modifier les variables dans `/usr/local/bin/sync-piusb-to-nextcloud.sh` :
 
-- `MOUNT_POINT` : Point de montage de l'image USB
-- `IMG` : Chemin de l'image disque USB
+- `MOUNT_POINT` : Point de montage de l'image USB (défaut : `/mnt/piusb`)
+- `IMG` : Chemin de l'image disque USB (défaut : `/piusb.img`)
 - `NEXTCLOUD_REMOTE` : Nom de la remote rclone (défaut : `nextcloud:`)
-- `NEXTCLOUD_PATH` : Chemin de destination sur Nextcloud (défaut : `NIDEK/NIDEK-ICE9000`)
 - `SCAN_INTERVAL` : Intervalle de scan en secondes (défaut : 15)
 - `SLEEP_AFTER_EVENT` : Délai après un événement en secondes (défaut : 1)
 - `RCLONE_OPTS` : Options de rclone (défaut : `--transfers=4 --checkers=8`)
@@ -185,9 +201,21 @@ sudo chmod 600 ~/.config/rclone/rclone.conf
 2. Allez dans **Paramètres** (en haut à droite)
 3. Allez dans l'onglet **Sécurité**
 4. Descendez jusqu'à la section **Mots de passe d'application**
-5. Entrez un nom (ex : `Pi Sync`)
+5. Entrez le **nom du mot de passe** fourni lors de l'installation : `{hostname}-sync`
 6. Cliquez sur **Générer le mot de passe**
-7. Utilisez le mot de passe généré lors de l'installation ou la configuration
+7. Utilisez le mot de passe généré
+
+### Modifier le hostname du Pi
+
+Si vous souhaitez changer le hostname du Pi **avant** l'installation :
+
+```sh
+sudo hostnamectl set-hostname nouveau-nom
+```
+
+Puis redémarrez et lancez l'installation.
+
+**Note** : Ne changez pas le hostname **après** l'installation, car cela causerait une incohérence avec les paramètres stockés dans `/etc/piusb-sync.conf`.
 
 --- *(Ce README est généré automatiquement par l'assistant pour clarifier la procédure.)*
 

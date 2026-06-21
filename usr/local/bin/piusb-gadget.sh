@@ -4,8 +4,16 @@ set -eu
 IMG="/piusb.img"
 GADGET_DIR="/sys/kernel/config/usb_gadget/g1"
 
-# -------------------------------------------------
-# 1️⃣ Vérifier que l’image existe
+# -------------------------------------------------# Charger la configuration pour récupérer le hostname
+CONF_FILE="/etc/piusb-sync.conf"
+PIUSB_HOSTNAME="pi-sync"  # Valeur par défaut
+if [ -f "$CONF_FILE" ]; then
+    # Extraire PIUSB_HOSTNAME de la configuration
+    PIUSB_HOSTNAME=$(grep '^PIUSB_HOSTNAME=' "$CONF_FILE" | cut -d'=' -f2)
+    [ -z "$PIUSB_HOSTNAME" ] && PIUSB_HOSTNAME="pi-sync"
+fi
+
+# -------------------------------------------------# 1️⃣ Vérifier que l’image existe
 [ -f "$IMG" ] || { echo "Image $IMG introuvable" >&2; exit 1; }
 
 # 2️⃣ Charger le module libcomposite
@@ -28,9 +36,9 @@ echo 0x0100 > bcdDevice
 echo 0x0200 > bcdUSB
 
 mkdir -p strings/0x409
-echo "0123456789" > strings/0x409/serialnumber
+echo "$PIUSB_HOSTNAME" > strings/0x409/serialnumber
 echo "Raspberry Pi" > strings/0x409/manufacturer
-echo "Pi USB Mass Storage" > strings/0x409/product
+echo "Pi USB Mass Storage (${PIUSB_HOSTNAME})" > strings/0x409/product
 
 mkdir -p configs/c.1
 echo 250 > configs/c.1/MaxPower
