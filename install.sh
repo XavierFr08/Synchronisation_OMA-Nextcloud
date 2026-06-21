@@ -376,7 +376,7 @@ configure_nextcloud() {
         echo "  5. Cliquez sur 'Générer le mot de passe'"
         echo "  6. Copiez le mot de passe généré"
         echo ""
-        read -rp "[install] Appuyez sur Entrée pour continuer quand le mot de passe est créé..." 
+        read -rp "[install] Appuyez sur Entrée pour continuer quand le mot de passe est créé..." </dev/tty
         echo ""
     fi
 
@@ -388,7 +388,7 @@ configure_nextcloud() {
     fi
     url_prompt="${url_prompt}: "
     
-    read -rp "$url_prompt" nc_url
+    read -rp "$url_prompt" nc_url </dev/tty
     # Utiliser la valeur par défaut si entrée vide
     if [[ -z "$nc_url" ]]; then
         if [[ -n "$nc_url_default" ]]; then
@@ -411,7 +411,7 @@ configure_nextcloud() {
     fi
     user_prompt="${user_prompt}: "
     
-    read -rp "$user_prompt" nc_user
+    read -rp "$user_prompt" nc_user </dev/tty
     # Utiliser la valeur par défaut si entrée vide
     if [[ -z "$nc_user" ]]; then
         if [[ -n "$nc_user_default" ]]; then
@@ -428,7 +428,7 @@ configure_nextcloud() {
     if [[ "$is_reconfiguration" == true ]]; then
         echo "  [Valeur existante - laissez vide pour la conserver]"
     fi
-    read -rsp "  → Entrez le mot de passe: " nc_password
+    read -rsp "  → Entrez le mot de passe: " nc_password </dev/tty
     echo ""
     
     # Si reconfiguration et pas de nouveau mot de passe, garder l'ancien
@@ -443,11 +443,11 @@ configure_nextcloud() {
     fi
 
     # Prompt for Nextcloud path (with default based on hostname or existing value)
-    local nc_path_default="${NEXTCLOUD_PATH:-${piusb_hostname}}"
+    local nc_path_default="${NEXTCLOUD_PATH:-/NIDEK${piusb_hostname}}"
     local path_prompt="[install] Chemin dans Nextcloud pour la synchronisation [${nc_path_default}]"
     path_prompt="${path_prompt}: "
     
-    read -rp "$path_prompt" user_nc_path
+    read -rp "$path_prompt" user_nc_path </dev/tty
     # Utiliser la valeur par défaut si entrée vide
     if [[ -z "$user_nc_path" ]]; then
         nc_path="$nc_path_default"

@@ -50,10 +50,6 @@ EOF
     chmod 600 "$REMOTE_RCLONE_CONF"
     echo "[DEBUG] Configuration rclone créée pour ${NEXTCLOUD_USER}" >&2
 fi
-# Créer le dossier temporaire 
-if [[ ! -d "$TMP_DIR" ]]; then
-    mkdir -p "$TMP_DIR"
-fi
 
 declare -A FILE_STATE
 
