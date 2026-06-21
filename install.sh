@@ -30,6 +30,33 @@ if [[ -n "${BASH_SOURCE+x}" && -n "${BASH_SOURCE:-}" ]]; then
 fi
 SCRIPT_DIR=$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)
 
+# Vérifie si dtoverlay=dwc2 est déjà présent sous une section [all]
+if ! awk '
+  /^\[all\]/ { in_all=1; next }
+  /^\[/      { in_all=0 }
+  in_all && /^dtoverlay=dwc2$/ { found=1 }
+  END { exit !found }
+' /boot/firmware/config.txt; then
+  echo -e "\n[all]\ndtoverlay=dwc2" >> /boot/firmware/config.txt
+
+  echo ""
+  echo "========================================================"
+  echo "  ⚠️  REDÉMARRAGE NÉCESSAIRE"
+  echo "========================================================"
+  echo ""
+  echo "  La configuration USB OTG a été ajoutée à config.txt."
+  echo "  Le Raspberry Pi doit redémarrer pour la prendre en compte."
+  echo ""
+  echo "  ➡️  Après le redémarrage :"
+  echo "      1. Reconnectez-vous au Raspberry Pi"
+  echo "      2. Relancez ce script d'installation"
+  echo ""
+  echo "========================================================"
+  read -rp "  Appuyez sur Entrée pour redémarrer..." </dev/tty
+  echo ""
+  sudo reboot
+fi
+
 require_root() {
     if [[ $EUID -ne 0 ]]; then
         echo "This installer must be run as root (sudo)." >&2
