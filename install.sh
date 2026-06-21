@@ -33,10 +33,17 @@ SCRIPT_DIR=$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)
 # Expansion du système de fichiers si nécessaire
 NEEDS_REBOOT=false
 
-if ! raspi-config nonint get_expand_rootfs | grep -q "1"; then
-    echo "[install] Expansion du système de fichiers activée..."
+ROOT_PART=$(findmnt -n -o SOURCE /)
+DISK=$(lsblk -no PKNAME "$ROOT_PART")
+PART_END=$(parted /dev/"$DISK" unit s print 2>/dev/null | awk '/^ *2 /{print $3}' | tr -d 's')
+DISK_END=$(parted /dev/"$DISK" unit s print 2>/dev/null | awk '/^Disk \/dev\//{print $3}' | tr -d 's')
+
+if [[ -n "$PART_END" && -n "$DISK_END" && "$PART_END" -lt $(( DISK_END - 2048 )) ]]; then
+    echo "[install] Expansion du système de fichiers..."
     raspi-config nonint do_expand_rootfs
     NEEDS_REBOOT=true
+else
+    echo "[install] Système de fichiers déjà à taille maximale, rien à faire."
 fi
 
 # Vérifie si dtoverlay=dwc2 est déjà présent sous une section [all]
