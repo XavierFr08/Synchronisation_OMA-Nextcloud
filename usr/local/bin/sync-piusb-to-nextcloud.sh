@@ -12,11 +12,11 @@ if [[ -f "$CONF_FILE" ]]; then
     # shellcheck source=/dev/null
     source "$CONF_FILE"
 fi
-PIUSB_USER="${PIUSB_USER:-}"
-if [[ -z "$PIUSB_USER" ]]; then
-    echo "ERROR: PIUSB_USER is not set. Run install.sh to configure the user." >&2
-    exit 1
-fi
+# Validation des variables obligatoires
+: "${PIUSB_USER:?ERROR: PIUSB_USER non défini dans $CONF_FILE}"
+: "${NEXTCLOUD_URL:?ERROR: NEXTCLOUD_URL non défini dans $CONF_FILE}"
+: "${NEXTCLOUD_USER:?ERROR: NEXTCLOUD_USER non défini dans $CONF_FILE}"
+
 # ---------------------------------------------------
 
 export RCLONE_CONFIG="/home/${PIUSB_USER}/.config/rclone/rclone.conf"
@@ -26,7 +26,7 @@ MOUNT_POINT="/mnt/piusb"
 IMG="/piusb.img"
 SCAN_INTERVAL=15
 NEXTCLOUD_REMOTE="nextcloud:"
-PIUSB_HOSTNAME="${PIUSB_HOSTNAME:-pi-sync}"
+PIUSB_HOSTNAME="${PIUSB_HOSTNAME:-$(hostname -s)}"
 NEXTCLOUD_PATH="${NEXTCLOUD_PATH:-NIDEK/${PIUSB_HOSTNAME}}"
 SLEEP_AFTER_EVENT=1
 RCLONE_OPTS=(--transfers=4 --checkers=8)
