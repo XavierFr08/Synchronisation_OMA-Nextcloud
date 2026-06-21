@@ -170,6 +170,9 @@ configure_user() {
 
     echo "PIUSB_USER=${user}" > /etc/piusb-sync.conf
     echo "[install] Configuration utilisateur écrite dans /etc/piusb-sync.conf (PIUSB_USER=${user})"
+    
+    # Charger la variable dans le shell actuel pour les fonctions suivantes
+    PIUSB_USER="$user"
 }
 
 get_piusb_hostname() {
@@ -183,6 +186,15 @@ get_piusb_hostname() {
     fi
     
     echo "$hostname"
+}
+
+load_configuration() {
+    local conf_file="${1:-/etc/piusb-sync.conf}"
+    
+    if [[ -f "$conf_file" ]]; then
+        # shellcheck source=/dev/null
+        source "$conf_file"
+    fi
 }
 
 verify_nextcloud_config() {
@@ -206,15 +218,14 @@ verify_nextcloud_config() {
 }
 
 test_nextcloud_access() {
-    local nc_url nc_user nc_path
+    local nc_path
     
-    # Charger la configuration
-    if [[ ! -f "/etc/piusb-sync.conf" ]]; then
-        return 1
+    # Charger la configuration si pas déjà chargée
+    if [[ -z "${NEXTCLOUD_URL:-}" ]]; then
+        load_configuration "/etc/piusb-sync.conf"
     fi
     
-    source /etc/piusb-sync.conf
-    
+    # Vérifier que tous les paramètres sont disponibles
     if [[ -z "${NEXTCLOUD_URL:-}" || -z "${NEXTCLOUD_USER:-}" || -z "${PIUSB_USER:-}" ]]; then
         return 1
     fi
@@ -245,6 +256,9 @@ test_nextcloud_access() {
 check_and_configure_nextcloud() {
     local reconfigure answer
     
+    # Charger la configuration existante si présente
+    load_configuration "/etc/piusb-sync.conf"
+    
     if ! verify_nextcloud_config "/etc/piusb-sync.conf"; then
         echo "" >&2
         echo "[install] Configuration Nextcloud manquante ou incomplète." >&2
@@ -265,9 +279,15 @@ check_and_configure_nextcloud() {
         if [[ "${reconfigure:-o}" == "o" || "${reconfigure:-o}" == "O" ]]; then
             # Sauvegarder les anciens paramètres
             cp /etc/piusb-sync.conf "/etc/piusb-sync.conf.bak"
-            # Extraire et garder les paramètres non-Nextcloud
+            
+            # Extraire et garder les paramètres PIUSB_ (utilisateur et hostname)
             grep '^PIUSB_' "/etc/piusb-sync.conf.bak" > /etc/piusb-sync.conf.tmp
             mv /etc/piusb-sync.conf.tmp /etc/piusb-sync.conf
+            
+            # Recharger la configuration avec les paramètres PIUSB_ conservés
+            load_configuration "/etc/piusb-sync.conf"
+            
+            # Reconfigurer Nextcloud
             configure_nextcloud
             echo "[install] Configuration mise à jour. Ancien fichier sauvegardé: /etc/piusb-sync.conf.bak" >&2
         else
@@ -280,6 +300,16 @@ check_and_configure_nextcloud() {
 configure_nextcloud() {
     local nc_url nc_user nc_password app_name nc_path user_nc_path
     local piusb_hostname
+    
+    # Charger la configuration si elle existe (utile en cas de reconfiguration)
+    load_configuration "/etc/piusb-sync.conf"
+    
+    # Vérifier que PIUSB_USER est défini
+    if [[ -z "${PIUSB_USER:-}" ]]; then
+        echo "ERROR: PIUSB_USER doit être défini avant configure_nextcloud(). Exécutez configure_user() d'abord." >&2
+        exit 1
+    fi
+    
     piusb_hostname=$(get_piusb_hostname)
     app_name="${piusb_hostname}-sync"  # Nom du mot de passe d'application
     nc_path="${piusb_hostname}"  # Chemin Nextcloud par défaut
@@ -335,6 +365,13 @@ configure_nextcloud() {
     fi
 
     # Append Nextcloud configuration to /etc/piusb-sync.conf
+    # D'abord, supprimer les anciennes lignes Nextcloud pour éviter les doublons lors d'une reconfiguration
+    if [[ -f /etc/piusb-sync.conf ]]; then
+        grep -v '^NEXTCLOUD_\|^PIUSB_HOSTNAME=' /etc/piusb-sync.conf > /etc/piusb-sync.conf.tmp
+        mv /etc/piusb-sync.conf.tmp /etc/piusb-sync.conf
+    fi
+    
+    # Ajouter la configuration Nextcloud
     {
         echo "PIUSB_HOSTNAME=${piusb_hostname}"
         echo "NEXTCLOUD_URL=${nc_url}"
@@ -368,6 +405,9 @@ EOF
     echo "[install] Configuration rclone créée pour l'utilisateur ${PIUSB_USER}"
     echo "[install] Dossier Nextcloud: ${nc_path}"
     echo "[install] Mot de passe d'application nommé: ${app_name}"
+    
+    # Recharger la configuration dans le shell actuel pour les fonctions suivantes
+    load_configuration "/etc/piusb-sync.conf"
 }
 
 prepare_source() {
