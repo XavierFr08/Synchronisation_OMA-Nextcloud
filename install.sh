@@ -30,6 +30,15 @@ if [[ -n "${BASH_SOURCE+x}" && -n "${BASH_SOURCE:-}" ]]; then
 fi
 SCRIPT_DIR=$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)
 
+# Expansion du système de fichiers si nécessaire
+NEEDS_REBOOT=false
+
+if ! raspi-config nonint get_expand_rootfs | grep -q "1"; then
+    echo "[install] Expansion du système de fichiers activée..."
+    raspi-config nonint do_expand_rootfs
+    NEEDS_REBOOT=true
+fi
+
 # Vérifie si dtoverlay=dwc2 est déjà présent sous une section [all]
 if ! awk '
   /^\[all\]/ { in_all=1; next }
@@ -37,24 +46,28 @@ if ! awk '
   in_all && /^dtoverlay=dwc2$/ { found=1 }
   END { exit !found }
 ' /boot/firmware/config.txt; then
-  echo -e "\n[all]\ndtoverlay=dwc2" >> /boot/firmware/config.txt
+    echo -e "\n[all]\ndtoverlay=dwc2" >> /boot/firmware/config.txt
+    NEEDS_REBOOT=true
+fi
 
-  echo ""
-  echo "========================================================"
-  echo "  ⚠️  REDÉMARRAGE NÉCESSAIRE"
-  echo "========================================================"
-  echo ""
-  echo "  La configuration USB OTG a été ajoutée à config.txt."
-  echo "  Le Raspberry Pi doit redémarrer pour la prendre en compte."
-  echo ""
-  echo "  ➡️  Après le redémarrage :"
-  echo "      1. Reconnectez-vous au Raspberry Pi"
-  echo "      2. Relancez ce script d'installation"
-  echo ""
-  echo "========================================================"
-  read -rp "  Appuyez sur Entrée pour redémarrer..." </dev/tty
-  echo ""
-  sudo reboot
+if [[ "$NEEDS_REBOOT" == true ]]; then
+    echo ""
+    echo "========================================================"
+    echo "  ⚠️  REDÉMARRAGE NÉCESSAIRE"
+    echo "========================================================"
+    echo ""
+    echo "  Modifications appliquées :"
+    echo "    - Expansion du système de fichiers"
+    echo "    - Configuration USB OTG (dtoverlay=dwc2)"
+    echo ""
+    echo "  ➡️  Après le redémarrage :"
+    echo "      1. Reconnectez-vous au Raspberry Pi"
+    echo "      2. Relancez ce script d'installation"
+    echo ""
+    echo "========================================================"
+    read -rp "  Appuyez sur Entrée pour redémarrer..." </dev/tty
+    echo ""
+    sudo reboot
 fi
 
 require_root() {
