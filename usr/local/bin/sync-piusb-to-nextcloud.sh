@@ -26,16 +26,29 @@ MOUNT_POINT="/mnt/piusb"
 IMG="/piusb.img"
 SCAN_INTERVAL=15
 NEXTCLOUD_REMOTE="nextcloud:"
-NEXTCLOUD_PATH="NIDEK/NIDEK-ICE9000"
+NEXTCLOUD_PATH="${NEXTCLOUD_PATH:-NIDEK/NIDEK-ICE9000}"
 SLEEP_AFTER_EVENT=1
 RCLONE_OPTS=(--transfers=4 --checkers=8)
 TMP_DIR="/tmp/piusb-sync-tmp"
 USER_HOME="/home/${PIUSB_USER}"
 STATE_FILE="${USER_HOME}/.piusb-sync/state.csv"
-# ----------------------------------------------------
-
-mkdir -p "$TMP_DIR" "$(dirname "$STATE_FILE")"
-chown "${PIUSB_USER}:${PIUSB_USER}" "$TMP_DIR" "$(dirname "$STATE_FILE")"
+REMOTE_RCLONE_CONF="${USER_HOME}/.config/rclone/rclone.conf"
+# Vérifier et mettre à jour la configuration rclone si nécessaire
+if [[ ! -f "$REMOTE_RCLONE_CONF" ]] && [[ -n "${NEXTCLOUD_URL:-}" ]]; then
+    mkdir -p "$(dirname "$REMOTE_RCLONE_CONF")"
+    # Créer le fichier de configuration rclone avec les paramètres Nextcloud
+    cat > "$REMOTE_RCLONE_CONF" << EOF
+[nextcloud]
+type = webdav
+url = ${NEXTCLOUD_URL}/remote.php/dav/files/${NEXTCLOUD_USER}/
+vendor = nextcloud
+user = ${NEXTCLOUD_USER}
+pass = ${NEXTCLOUD_PASSWORD}
+EOF
+    chown "${PIUSB_USER}:${PIUSB_USER}" "$REMOTE_RCLONE_CONF"
+    chmod 600 "$REMOTE_RCLONE_CONF"
+    echo "[DEBUG] Configuration rclone créée pour ${NEXTCLOUD_USER}" >&2
+fi
 
 declare -A FILE_STATE
 

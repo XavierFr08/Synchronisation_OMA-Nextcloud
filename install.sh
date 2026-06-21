@@ -172,6 +172,71 @@ configure_user() {
     echo "[install] Configuration utilisateur écrite dans /etc/piusb-sync.conf (PIUSB_USER=${user})"
 }
 
+configure_nextcloud() {
+    local nc_url nc_user nc_password
+
+    echo ""
+    echo "[install] ===== Configuration Nextcloud ====="
+    echo "[install] Entrez les paramètres de connexion Nextcloud pour la synchronisation."
+    echo ""
+
+    # Prompt for Nextcloud URL
+    read -rp "[install] URL du serveur Nextcloud (ex: https://nextcloud.example.com) : " nc_url
+    if [[ -z "$nc_url" ]]; then
+        echo "ERROR: URL Nextcloud requise." >&2
+        exit 1
+    fi
+
+    # Remove trailing slash if present
+    nc_url="${nc_url%/}"
+
+    # Prompt for username
+    read -rp "[install] Nom d'utilisateur Nextcloud : " nc_user
+    if [[ -z "$nc_user" ]]; then
+        echo "ERROR: Nom d'utilisateur requis." >&2
+        exit 1
+    fi
+
+    # Prompt for app password
+    read -rsp "[install] Mot de passe d'application Nextcloud : " nc_password
+    echo ""
+    if [[ -z "$nc_password" ]]; then
+        echo "ERROR: Mot de passe d'application requis." >&2
+        exit 1
+    fi
+
+    # Append Nextcloud configuration to /etc/piusb-sync.conf
+    {
+        echo "NEXTCLOUD_URL=${nc_url}"
+        echo "NEXTCLOUD_USER=${nc_user}"
+        echo "NEXTCLOUD_PASSWORD=${nc_password}"
+    } >> /etc/piusb-sync.conf
+
+    chmod 600 /etc/piusb-sync.conf
+
+    # Create rclone configuration for the user
+    local user_home
+    user_home=$(eval echo "~${PIUSB_USER}")
+    local rclone_dir="${user_home}/.config/rclone"
+    mkdir -p "$rclone_dir"
+
+    # Create rclone.conf with Nextcloud remote
+    cat > "${rclone_dir}/rclone.conf" <<EOF
+[nextcloud]
+type = webdav
+url = ${nc_url}/remote.php/dav/files/${nc_user}/
+vendor = nextcloud
+user = ${nc_user}
+pass = $(rclone obscure "${nc_password}")
+EOF
+
+    chown -R "${PIUSB_USER}:${PIUSB_USER}" "$rclone_dir"
+    chmod 600 "${rclone_dir}/rclone.conf"
+
+    echo "[install] Configuration Nextcloud sauvegardée dans /etc/piusb-sync.conf"
+    echo "[install] Configuration rclone créée pour l'utilisateur ${PIUSB_USER}"
+}
+
 prepare_source() {
     PREPARED_SOURCE=""
 
@@ -202,6 +267,7 @@ perform_install() {
     require_root
     install_packages
     configure_user
+    configure_nextcloud
     prepare_source
     if [[ -z "${PREPARED_SOURCE:-}" ]]; then
         echo "ERROR: impossible de déterminer le répertoire source." >&2
@@ -231,7 +297,11 @@ perform_update() {
 
     echo "[update] updating repository in $src"
     git -C "$src" pull --ff-only origin main
-
+    # Ask if user wants to reconfigure Nextcloud
+    read -rp \"[update] Reconfigurer les paramètres Nextcloud? (o/n) [n] : \" reconfigure_nc
+    if [[ \"${reconfigure_nc:-n}\" == \"o\" || \"${reconfigure_nc:-n}\" == \"O\" ]]; then
+        configure_nextcloud
+    fi
     copy_files "$src"
     ensure_piusb_image
     ensure_piusb_mount

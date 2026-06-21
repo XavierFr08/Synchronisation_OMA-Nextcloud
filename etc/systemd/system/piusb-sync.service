@@ -5,8 +5,7 @@ Requires=piusb-mount.service
 
 [Service]
 Type=simple
-#User=<piusb_user>  # set by install.sh via /etc/piusb-sync.conf
-#Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=/etc/piusb-sync.conf
 ExecStart=/usr/local/bin/sync-piusb-to-nextcloud.sh
 Restart=on-failure
 RestartSec=10
