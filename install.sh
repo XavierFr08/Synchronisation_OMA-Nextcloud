@@ -428,7 +428,7 @@ configure_nextcloud() {
     if [[ "$is_reconfiguration" == true ]]; then
         echo "  [Valeur existante - laissez vide pour la conserver]"
     fi
-    read -rsp "  → Entrez le mot de passe: " nc_password </dev/tty
+    read -rsp "  → Entrez le mot de passe d'application: " nc_password </dev/tty
     echo ""
     
     # Si reconfiguration et pas de nouveau mot de passe, garder l'ancien
