@@ -44,6 +44,41 @@ install_packages() {
     apt install -y rpi-usb-gadget rclone git dosfstools
 }
 
+ensure_directories() {
+    echo "[install] Vérification et création des répertoires nécessaires..."
+    
+    # Répertoires système
+    mkdir -p /mnt/piusb
+    mkdir -p /usr/local/bin
+    mkdir -p /etc/systemd/system
+    
+    # Répertoires utilisateur pour rclone et état de synchronisation
+    if [[ -n "${PIUSB_USER:-}" ]]; then
+        local user_home
+        user_home=$(eval echo "~${PIUSB_USER}")
+        
+        # Répertoire rclone
+        mkdir -p "${user_home}/.config/rclone"
+        chmod 700 "${user_home}/.config"
+        chmod 700 "${user_home}/.config/rclone"
+        chown -R "${PIUSB_USER}:${PIUSB_USER}" "${user_home}/.config"
+        
+        # Répertoire pour l'état de synchronisation
+        mkdir -p "${user_home}/.piusb-sync"
+        chmod 700 "${user_home}/.piusb-sync"
+        chown -R "${PIUSB_USER}:${PIUSB_USER}" "${user_home}/.piusb-sync"
+        
+        # Répertoire temporaire pour les transferts
+        mkdir -p /tmp/piusb-sync-tmp
+        chmod 750 /tmp/piusb-sync-tmp
+        chown "${PIUSB_USER}:${PIUSB_USER}" /tmp/piusb-sync-tmp
+        
+        echo "[install] Répertoires utilisateur créés pour ${PIUSB_USER}"
+    fi
+    
+    echo "[install] Tous les répertoires sont prêts"
+}
+
 ensure_piusb_image() {
     local img="/piusb.img"
 
@@ -300,6 +335,7 @@ check_and_configure_nextcloud() {
 configure_nextcloud() {
     local nc_url nc_user nc_password app_name nc_path user_nc_path
     local piusb_hostname
+    local is_reconfiguration=false
     
     # Charger la configuration si elle existe (utile en cas de reconfiguration)
     load_configuration "/etc/piusb-sync.conf"
@@ -316,51 +352,107 @@ configure_nextcloud() {
 
     echo ""
     echo "[install] ===== Configuration Nextcloud ====="
-    echo "[install] Entrez les paramètres de connexion Nextcloud pour la synchronisation."
-    echo ""
+    
+    # Vérifier si c'est une reconfiguration
+    if [[ -n "${NEXTCLOUD_URL:-}" && -n "${NEXTCLOUD_USER:-}" ]]; then
+        is_reconfiguration=true
+        echo "[INFO] Configuration Nextcloud existante détectée."
+        echo "[INFO] Les valeurs actuelles sont affichées comme défauts entre [crochets]."
+        echo ""
+    else
+        echo "[install] Entrez les paramètres de connexion Nextcloud pour la synchronisation."
+    fi
+    
     echo "[INFO] Hostname détecté: ${piusb_hostname}"
     echo ""
 
     # Instructions pour créer le mot de passe d'application
-    echo "[INSTRUCTION] AVANT de continuer, créez un mot de passe d'application dans Nextcloud :"
-    echo "  1. Connectez-vous à Nextcloud"
-    echo "  2. Allez dans Paramètres → Sécurité"
-    echo "  3. Cherchez 'Mots de passe d'application' en bas de la page"
-    echo "  4. Entrez le nom: '${app_name}'"
-    echo "  5. Cliquez sur 'Générer le mot de passe'"
-    echo "  6. Copiez le mot de passe généré"
-    echo ""
-    read -rp "[install] Appuyez sur Entrée pour continuer quand le mot de passe est créé..." 
-    echo ""
+    if [[ "$is_reconfiguration" != true ]]; then
+        echo "[INSTRUCTION] AVANT de continuer, créez un mot de passe d'application dans Nextcloud :"
+        echo "  1. Connectez-vous à Nextcloud"
+        echo "  2. Allez dans Paramètres → Sécurité"
+        echo "  3. Cherchez 'Mots de passe d'application' en bas de la page"
+        echo "  4. Entrez le nom: '${app_name}'"
+        echo "  5. Cliquez sur 'Générer le mot de passe'"
+        echo "  6. Copiez le mot de passe généré"
+        echo ""
+        read -rp "[install] Appuyez sur Entrée pour continuer quand le mot de passe est créé..." 
+        echo ""
+    fi
 
     # Prompt for Nextcloud URL
-    read -rp "[install] URL du serveur Nextcloud (ex: https://nextcloud.example.com) : " nc_url
+    local nc_url_default="${NEXTCLOUD_URL:-}"
+    local url_prompt="[install] URL du serveur Nextcloud"
+    if [[ -n "$nc_url_default" ]]; then
+        url_prompt="${url_prompt} [${nc_url_default}]"
+    fi
+    url_prompt="${url_prompt}: "
+    
+    read -rp "$url_prompt" nc_url
+    # Utiliser la valeur par défaut si entrée vide
     if [[ -z "$nc_url" ]]; then
-        echo "ERROR: URL Nextcloud requise." >&2
-        exit 1
+        if [[ -n "$nc_url_default" ]]; then
+            nc_url="$nc_url_default"
+            echo "  → Utilisation de la valeur existante: $nc_url"
+        else
+            echo "ERROR: URL Nextcloud requise." >&2
+            exit 1
+        fi
     fi
 
     # Remove trailing slash if present
     nc_url="${nc_url%/}"
 
     # Prompt for username
-    read -rp "[install] Nom d'utilisateur Nextcloud : " nc_user
+    local nc_user_default="${NEXTCLOUD_USER:-}"
+    local user_prompt="[install] Nom d'utilisateur Nextcloud"
+    if [[ -n "$nc_user_default" ]]; then
+        user_prompt="${user_prompt} [${nc_user_default}]"
+    fi
+    user_prompt="${user_prompt}: "
+    
+    read -rp "$user_prompt" nc_user
+    # Utiliser la valeur par défaut si entrée vide
     if [[ -z "$nc_user" ]]; then
-        echo "ERROR: Nom d'utilisateur requis." >&2
-        exit 1
+        if [[ -n "$nc_user_default" ]]; then
+            nc_user="$nc_user_default"
+            echo "  → Utilisation de la valeur existante: $nc_user"
+        else
+            echo "ERROR: Nom d'utilisateur requis." >&2
+            exit 1
+        fi
     fi
 
     # Prompt for app password
-    read -rsp "[install] Mot de passe d'application Nextcloud : " nc_password
+    echo "[install] Mot de passe d'application Nextcloud"
+    if [[ "$is_reconfiguration" == true ]]; then
+        echo "  [Valeur existante - laissez vide pour la conserver]"
+    fi
+    read -rsp "  → Entrez le mot de passe: " nc_password
     echo ""
+    
+    # Si reconfiguration et pas de nouveau mot de passe, garder l'ancien
+    if [[ -z "$nc_password" && "$is_reconfiguration" == true ]]; then
+        nc_password="${NEXTCLOUD_PASSWORD:-}"
+        echo "  → Conservation du mot de passe existant"
+    fi
+    
     if [[ -z "$nc_password" ]]; then
         echo "ERROR: Mot de passe d'application requis." >&2
         exit 1
     fi
 
-    # Prompt for Nextcloud path (with default based on hostname)
-    read -rp "[install] Chemin dans Nextcloud pour la synchronisation (défaut: ${nc_path}) : " user_nc_path
-    if [[ -n "$user_nc_path" ]]; then
+    # Prompt for Nextcloud path (with default based on hostname or existing value)
+    local nc_path_default="${NEXTCLOUD_PATH:-${piusb_hostname}}"
+    local path_prompt="[install] Chemin dans Nextcloud pour la synchronisation [${nc_path_default}]"
+    path_prompt="${path_prompt}: "
+    
+    read -rp "$path_prompt" user_nc_path
+    # Utiliser la valeur par défaut si entrée vide
+    if [[ -z "$user_nc_path" ]]; then
+        nc_path="$nc_path_default"
+        echo "  → Utilisation de: $nc_path"
+    else
         nc_path="$user_nc_path"
     fi
 
@@ -440,6 +532,7 @@ perform_install() {
     require_root
     install_packages
     configure_user
+    ensure_directories
     configure_nextcloud
     prepare_source
     if [[ -z "${PREPARED_SOURCE:-}" ]]; then
@@ -470,6 +563,10 @@ perform_update() {
 
     echo "[update] updating repository in $src"
     git -C "$src" pull --ff-only origin main
+    
+    # Charger l'utilisateur pour ensure_directories
+    load_configuration "/etc/piusb-sync.conf"
+    ensure_directories
     
     # Vérifier et configurer Nextcloud si nécessaire
     check_and_configure_nextcloud
