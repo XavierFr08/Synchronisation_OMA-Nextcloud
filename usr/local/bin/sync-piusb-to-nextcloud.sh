@@ -27,7 +27,7 @@ IMG="/piusb.img"
 SCAN_INTERVAL=15
 NEXTCLOUD_REMOTE="nextcloud:"
 PIUSB_HOSTNAME="${PIUSB_HOSTNAME:-pi-sync}"
-NEXTCLOUD_PATH="${NEXTCLOUD_PATH:-${PIUSB_HOSTNAME}}"
+NEXTCLOUD_PATH="${NEXTCLOUD_PATH:-NIDEK/${PIUSB_HOSTNAME}}"
 SLEEP_AFTER_EVENT=1
 RCLONE_OPTS=(--transfers=4 --checkers=8)
 TMP_DIR="/tmp/piusb-sync-tmp"
@@ -49,6 +49,10 @@ EOF
     chown "${PIUSB_USER}:${PIUSB_USER}" "$REMOTE_RCLONE_CONF"
     chmod 600 "$REMOTE_RCLONE_CONF"
     echo "[DEBUG] Configuration rclone créée pour ${NEXTCLOUD_USER}" >&2
+fi
+# Créer le dossier temporaire 
+if [[ ! -d "$TMP_DIR" ]]; then
+    mkdir -p "$TMP_DIR"
 fi
 
 declare -A FILE_STATE
