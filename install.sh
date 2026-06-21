@@ -265,7 +265,7 @@ test_nextcloud_access() {
         return 1
     fi
     
-    nc_path="${NEXTCLOUD_PATH:-${PIUSB_HOSTNAME}}"
+    nc_path="${NEXTCLOUD_PATH:-NIDEK/${PIUSB_HOSTNAME}}"
     
     echo "[check] Test de l'accès à Nextcloud..." >&2
     echo "[check]   URL: ${NEXTCLOUD_URL}" >&2
@@ -348,7 +348,7 @@ configure_nextcloud() {
     
     piusb_hostname=$(get_piusb_hostname)
     app_name="${piusb_hostname}-sync"  # Nom du mot de passe d'application
-    nc_path="${piusb_hostname}"  # Chemin Nextcloud par défaut
+    nc_path="NIDEK/${piusb_hostname}"  # Chemin Nextcloud par défaut
 
     echo ""
     echo "[install] ===== Configuration Nextcloud ====="
@@ -443,7 +443,7 @@ configure_nextcloud() {
     fi
 
     # Prompt for Nextcloud path (with default based on hostname or existing value)
-    local nc_path_default="${NEXTCLOUD_PATH:-/NIDEK${piusb_hostname}}"
+    local nc_path_default="${NEXTCLOUD_PATH:-NIDEK/${piusb_hostname}}"
     local path_prompt="[install] Chemin dans Nextcloud pour la synchronisation [${nc_path_default}]"
     path_prompt="${path_prompt}: "
     
