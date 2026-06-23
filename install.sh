@@ -136,7 +136,7 @@ ensure_piusb_image() {
 
     echo "[install] Création de $img (256MiB, FAT32)..."
     dd if=/dev/zero of="$img" bs=1M count=256 status=progress
-    mkfs.vfat -F 32 "$img"
+    mkfs.vfat -F 16 "$img"
     sync
 }
 
