@@ -292,12 +292,3 @@ Puis redémarrez et lancez l'installation.
 - [Documentation Nextcloud (Admin Manual)](https://docs.nextcloud.com/server/latest/admin_manual/index.html)
 - [Présentation du Service Nextcloud](https://nextcloud.com/)
 
----
-
-### Événements Subséquents
-
-Une fois que vous avez mis à jour le fichier `README.md`, assurez-vous de vérifier les autres fichiers pour s'assurer qu'ils sont bien configurés et fonctionnent correctement avec vos nouveaux pré-requis.
-
-Si vous avez besoin d'aide supplémentaire ou si vous rencontrez des problèmes lors de la mise en place de ces pré-requis, n'hésitez pas à me contacter !
-
----
